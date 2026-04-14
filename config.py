@@ -30,7 +30,7 @@ class Config:
 NEWS_CHANNEL_URL    = "https://t.me/SMM_SOVHOZMEDIA"
 PAYMENT_STANDARD    = "https://example.com/pay/standard"   # заглушка
 PAYMENT_MAX         = "https://example.com/pay/max"        # заглушка
-MINI_APP_URL        = getenv("MINI_APP_URL", "https://example.com/app")  # HTTPS обязателен для Telegram Mini App
+MINI_APP_URL        = getenv("MINI_APP_URL", "https://smmbot-production.up.railway.app/app")
 
 
 # ─── Plans ────────────────────────────────────────────────────────────────────
