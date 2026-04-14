@@ -69,7 +69,7 @@ def upgrade_kb() -> InlineKeyboardMarkup:
 def profile_kb() -> InlineKeyboardMarkup:
     from aiogram.types import WebAppInfo
     from os import getenv
-    url = getenv("MINI_APP_URL", "https://smmbot-production.up.railway.app/app")
+    url = getenv("MINI_APP_URL", "https://smmbot-production.up.railway.app/app/")
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(
         text="👤 Открыть профиль",
