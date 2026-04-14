@@ -32,10 +32,15 @@ async def init_db():
                 user_id     INTEGER NOT NULL,
                 platform    TEXT NOT NULL,
                 handle      TEXT NOT NULL DEFAULT '',
+                token       TEXT NOT NULL DEFAULT '',
                 updated_at  TEXT NOT NULL,
                 UNIQUE(user_id, platform),
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
+        """)
+        # Migrate: add token column if not present (safe on existing tables)
+        await conn.execute("""
+            ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS token TEXT NOT NULL DEFAULT ''
         """)
 
 
@@ -90,6 +95,22 @@ async def save_social_account(user_id: int, platform: str, handle: str) -> None:
                ON CONFLICT (user_id, platform)
                DO UPDATE SET handle = EXCLUDED.handle, updated_at = EXCLUDED.updated_at""",
             user_id, platform, handle, now,
+        )
+
+
+async def save_oauth_token(user_id: int, platform: str, handle: str, token: str) -> None:
+    """Save OAuth access token for a platform. Upserts on (user_id, platform)."""
+    now = datetime.utcnow().isoformat()
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """INSERT INTO social_accounts (user_id, platform, handle, token, updated_at)
+               VALUES ($1, $2, $3, $4, $5)
+               ON CONFLICT (user_id, platform)
+               DO UPDATE SET handle = EXCLUDED.handle,
+                             token  = EXCLUDED.token,
+                             updated_at = EXCLUDED.updated_at""",
+            user_id, platform, handle, token, now,
         )
 
 

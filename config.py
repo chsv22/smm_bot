@@ -20,6 +20,15 @@ class Config:
     tiktok_token: str      = field(default_factory=lambda: getenv("TIKTOK_TOKEN", ""))
     vk_token: str          = field(default_factory=lambda: getenv("VK_TOKEN", ""))
 
+    # ── OAuth credentials ──
+    vk_app_id: str          = field(default_factory=lambda: getenv("VK_APP_ID", ""))
+    vk_app_secret: str      = field(default_factory=lambda: getenv("VK_APP_SECRET", ""))
+    instagram_app_id: str   = field(default_factory=lambda: getenv("INSTAGRAM_APP_ID", ""))
+    instagram_app_secret: str = field(default_factory=lambda: getenv("INSTAGRAM_APP_SECRET", ""))
+
+    # ── App public URL (Railway) ──
+    app_url: str = field(default_factory=lambda: getenv("APP_URL", "https://smmbot-production.up.railway.app"))
+
     # ── Mini App ──
     mini_app_host: str = field(default_factory=lambda: getenv("MINI_APP_HOST", "0.0.0.0"))
     mini_app_port: int = field(default_factory=lambda: int(getenv("MINI_APP_PORT", "8000")))
