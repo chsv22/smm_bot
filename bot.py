@@ -8,7 +8,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import config
 from database import init_db
-from handlers import start, tariffs, profile, admin
+from handlers import start, tariffs, profile, admin, onboarding
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,6 +31,7 @@ async def main() -> None:
     dp = Dispatcher(storage=MemoryStorage())
 
     dp.include_router(admin.router)
+    dp.include_router(onboarding.router)
     dp.include_router(tariffs.router)
     dp.include_router(profile.router)
     dp.include_router(start.router)

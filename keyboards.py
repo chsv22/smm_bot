@@ -41,8 +41,16 @@ def tariffs_new_kb() -> InlineKeyboardMarkup:
 
 def tariffs_standard_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text="⬆️ Повысить тариф", callback_data="tariff:upgrade"))
-    builder.row(InlineKeyboardButton(text="◀️ Главное меню",   callback_data="menu:main"))
+    builder.row(InlineKeyboardButton(text="🔗 Подключить соцсети", callback_data="tariff:connect"))
+    builder.row(InlineKeyboardButton(text="⬆️ Повысить тариф",    callback_data="tariff:upgrade"))
+    builder.row(InlineKeyboardButton(text="◀️ Главное меню",      callback_data="menu:main"))
+    return builder.as_markup()
+
+
+def tariffs_max_active_kb() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="🔗 Подключить соцсети", callback_data="tariff:connect"))
+    builder.row(InlineKeyboardButton(text="◀️ Главное меню",      callback_data="menu:main"))
     return builder.as_markup()
 
 

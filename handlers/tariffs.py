@@ -4,7 +4,7 @@ from aiogram.types import CallbackQuery
 import database as db
 from keyboards import (
     tariffs_new_kb, tariffs_standard_kb, tariffs_max_kb,
-    upgrade_kb, main_menu_kb,
+    tariffs_max_active_kb, upgrade_kb, main_menu_kb,
 )
 from config import (
     Plan,
@@ -26,7 +26,7 @@ async def show_tariffs(callback: CallbackQuery):
         # Есть MAX — показываем его описание
         await callback.message.edit_text(
             TARIFF_MAX_TEXT + "\n\n✅ <b>Это ваш текущий тариф</b>",
-            reply_markup=tariffs_max_kb(),
+            reply_markup=tariffs_max_active_kb(),
         )
 
     elif plan == Plan.STANDARD:
@@ -71,6 +71,15 @@ async def upgrade_tariff(callback: CallbackQuery):
         )
 
     await callback.answer()
+
+
+# ─── Подключить соцсети ───────────────────────────────────────────────────────
+
+@router.callback_query(F.data == "tariff:connect")
+async def tariff_connect(callback: CallbackQuery, state):
+    from handlers.onboarding import cmd_connect
+    await callback.answer()
+    await cmd_connect(callback.message, state)
 
 
 # ─── Новости ──────────────────────────────────────────────────────────────────

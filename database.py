@@ -17,6 +17,17 @@ async def init_db():
                 registered_at TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS social_accounts (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     INTEGER NOT NULL,
+                platform    TEXT NOT NULL,
+                handle      TEXT NOT NULL,
+                updated_at  TEXT NOT NULL,
+                UNIQUE(user_id, platform),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """)
         await db.commit()
 
 
@@ -57,6 +68,30 @@ async def set_plan(telegram_id: int, plan: str) -> None:
             "UPDATE users SET plan = ? WHERE telegram_id = ?", (plan, telegram_id)
         )
         await db.commit()
+
+
+# ─── Social accounts ──────────────────────────────────────────────────────────
+
+async def save_social_account(user_id: int, platform: str, handle: str) -> None:
+    now = datetime.utcnow().isoformat()
+    async with aiosqlite.connect(DB) as db:
+        await db.execute(
+            """INSERT INTO social_accounts (user_id, platform, handle, updated_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(user_id, platform) DO UPDATE SET handle=excluded.handle, updated_at=excluded.updated_at""",
+            (user_id, platform, handle, now),
+        )
+        await db.commit()
+
+
+async def get_social_accounts(user_id: int) -> dict:
+    async with aiosqlite.connect(DB) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT platform, handle FROM social_accounts WHERE user_id = ?", (user_id,)
+        ) as cur:
+            rows = await cur.fetchall()
+            return {r["platform"]: r["handle"] for r in rows if r["handle"]}
 
 
 # ─── Admin helpers ────────────────────────────────────────────────────────────
