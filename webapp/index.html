@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Личный кабинет — SMM</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:        #0f0f13;
+      --surface:   #1a1a24;
+      --surface2:  #22222e;
+      --border:    #2e2e3e;
+      --accent:    #6c63ff;
+      --accent2:   #ff6584;
+      --text:      #e8e8f0;
+      --muted:     #8888aa;
+      --green:     #4cdb8a;
+      --blue:      #4ca6ff;
+      --pink:      #ff6eb4;
+      --orange:    #ffaa44;
+      --teal:      #44ddcc;
+
+      --yt:   #ff3d3d;
+      --ig:   #e1306c;
+      --tk:   #69c9d0;
+      --vk:   #4a76a8;
+      --tg:   #29b6f6;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+      padding-bottom: 32px;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: var(--surface);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .avatar {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 700; color: #fff;
+      flex-shrink: 0;
+    }
+    .header-info h2 { font-size: 16px; font-weight: 600; }
+    .header-info span { font-size: 12px; color: var(--muted); }
+    .header-right { margin-left: auto; text-align: right; }
+    .plan-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+    }
+
+    /* ── Period selector ── */
+    .period-bar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 20px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .period-bar::-webkit-scrollbar { display: none; }
+    .period-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .period-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* ── Section title ── */
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 0 20px;
+      margin: 20px 0 12px;
+    }
+
+    /* ── Stat cards ── */
+    .cards-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      padding: 0 20px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px 12px;
+      text-align: center;
+    }
+    .card .card-icon { font-size: 22px; margin-bottom: 6px; }
+    .card .card-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+    .card .card-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ── Chart card ── */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      margin: 0 20px;
+      padding: 16px;
+    }
+    .chart-card canvas { width: 100% !important; }
+
+    /* ── Gender card ── */
+    .gender-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      margin: 0 20px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .gender-donut { width: 110px; height: 110px; flex-shrink: 0; }
+    .gender-legend { flex: 1; }
+    .gender-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .gender-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .gender-item .g-label { font-size: 13px; color: var(--muted); flex: 1; }
+    .gender-item .g-value { font-size: 18px; font-weight: 700; }
+
+    /* ── Platform table ── */
+    .platform-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 0 20px;
+    }
+    .platform-row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+    .platform-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .platform-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .platform-name { font-weight: 600; font-size: 14px; }
+    .platform-followers {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .platform-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .mini-stat { text-align: center; }
+    .mini-stat .mv { font-size: 14px; font-weight: 600; }
+    .mini-stat .ml { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Loading / error ── */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 60vh;
+      gap: 16px;
+      color: var(--muted);
+    }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-box {
+      margin: 40px 20px;
+      background: #2a1515;
+      border: 1px solid #5a2020;
+      border-radius: 14px;
+      padding: 20px;
+      text-align: center;
+      color: #ff6b6b;
+    }
+
+    /* ── Platform colors ── */
+    .p-youtube   { background: rgba(255,61,61,0.15); color: var(--yt); }
+    .p-instagram { background: rgba(225,48,108,0.15); color: var(--ig); }
+    .p-tiktok    { background: rgba(105,201,208,0.15); color: var(--tk); }
+    .p-vkontakte { background: rgba(74,118,168,0.15); color: var(--vk); }
+    .p-telegram  { background: rgba(41,182,246,0.15); color: var(--tg); }
+  </style>
+</head>
+<body>
+
+<!-- Loading state -->
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <span>Загружаем статистику...</span>
+</div>
+
+<!-- Main content (hidden until data loads) -->
+<div id="app" style="display:none">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="avatar" id="avatarLetter">?</div>
+    <div class="header-info">
+      <h2 id="userName">—</h2>
+      <span id="userHandle">—</span>
+    </div>
+    <div class="header-right">
+      <div class="plan-badge" id="planBadge">—</div>
+    </div>
+  </div>
+
+  <!-- Period selector -->
+  <div class="period-bar">
+    <button class="period-btn" data-days="7">7 дней</button>
+    <button class="period-btn active" data-days="30">30 дней</button>
+    <button class="period-btn" data-days="60">60 дней</button>
+    <button class="period-btn" data-days="90">90 дней</button>
+  </div>
+
+  <!-- Total stats cards -->
+  <div class="section-title">Общая статистика</div>
+  <div class="cards-row">
+    <div class="card">
+      <div class="card-icon">📄</div>
+      <div class="card-value" id="totalPosts">—</div>
+      <div class="card-label">Публикаций</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">👁</div>
+      <div class="card-value" id="totalViews">—</div>
+      <div class="card-label">Просмотров</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">❤️</div>
+      <div class="card-value" id="totalLikes">—</div>
+      <div class="card-label">Лайков</div>
+    </div>
+  </div>
+
+  <!-- Reach chart -->
+  <div class="section-title">Охваты по платформам</div>
+  <div class="chart-card">
+    <canvas id="reachChart" height="200"></canvas>
+  </div>
+
+  <!-- Gender chart -->
+  <div class="section-title">Аудитория</div>
+  <div class="gender-card">
+    <div class="gender-donut">
+      <canvas id="genderChart"></canvas>
+    </div>
+    <div class="gender-legend">
+      <div class="gender-item">
+        <div class="gender-dot" style="background:#4ca6ff"></div>
+        <span class="g-label">Мужчины</span>
+        <span class="g-value" id="malePct">—</span>
+      </div>
+      <div class="gender-item">
+        <div class="gender-dot" style="background:#ff6eb4"></div>
+        <span class="g-label">Женщины</span>
+        <span class="g-value" id="femalePct">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Platform breakdown -->
+  <div class="section-title">По платформам</div>
+  <div class="platform-list" id="platformList"></div>
+
+</div>
+
+<!-- Error state -->
+<div id="errorBox" style="display:none" class="error-box">
+  <div style="font-size:32px;margin-bottom:8px">⚠️</div>
+  <div id="errorMsg">Не удалось загрузить данные</div>
+</div>
+
+<script>
+// ── Telegram Web App init ────────────────────────────────────────────────────
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+  tg.setHeaderColor("#1a1a24");
+  tg.setBackgroundColor("#0f0f13");
+}
+
+const userId = tg?.initDataUnsafe?.user?.id ?? null;
+const API_BASE = window.location.origin; // same server
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+function fmt(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+  if (n >= 1_000)     return (n / 1_000).toFixed(1) + "K";
+  return String(n);
+}
+
+const PLATFORM_META = {
+  youtube:    { icon: "▶️", name: "YouTube",    cls: "p-youtube"   },
+  instagram:  { icon: "📸", name: "Instagram",  cls: "p-instagram" },
+  tiktok:     { icon: "🎵", name: "TikTok",     cls: "p-tiktok"    },
+  vkontakte:  { icon: "💙", name: "ВКонтакте",  cls: "p-vkontakte" },
+  telegram:   { icon: "✈️", name: "Telegram",   cls: "p-telegram"  },
+};
+
+const PLATFORM_COLORS = {
+  youtube:    "#ff3d3d",
+  instagram:  "#e1306c",
+  tiktok:     "#69c9d0",
+  vkontakte:  "#4a76a8",
+  telegram:   "#29b6f6",
+};
+
+// ── Chart instances ──────────────────────────────────────────────────────────
+let reachChartInst = null;
+let genderChartInst = null;
+
+function buildReachChart(chart) {
+  const ctx = document.getElementById("reachChart").getContext("2d");
+  if (reachChartInst) reachChartInst.destroy();
+
+  // Show only every Nth label to avoid crowding
+  const total = chart.labels.length;
+  const step  = Math.max(1, Math.floor(total / 6));
+  const displayLabels = chart.labels.map((l, i) => (i % step === 0) ? l.slice(5) : "");
+
+  reachChartInst = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: displayLabels,
+      datasets: chart.datasets.map(ds => ({
+        label: PLATFORM_META[ds.platform]?.name ?? ds.platform,
+        data: ds.data,
+        borderColor: PLATFORM_COLORS[ds.platform] ?? "#888",
+        backgroundColor: (PLATFORM_COLORS[ds.platform] ?? "#888") + "22",
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: true,
+        tension: 0.4,
+      }))
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: {
+          labels: {
+            color: "#8888aa",
+            font: { size: 11 },
+            boxWidth: 10,
+            padding: 10,
+          }
+        },
+        tooltip: {
+          backgroundColor: "#22222e",
+          borderColor: "#2e2e3e",
+          borderWidth: 1,
+          titleColor: "#e8e8f0",
+          bodyColor: "#8888aa",
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)}`,
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: "#2e2e3e" },
+          ticks: { color: "#8888aa", font: { size: 10 }, maxRotation: 0 },
+        },
+        y: {
+          grid: { color: "#2e2e3e" },
+          ticks: {
+            color: "#8888aa",
+            font: { size: 10 },
+            callback: v => fmt(v),
+          },
+        },
+      },
+    }
+  });
+}
+
+function buildGenderChart(male, female) {
+  const ctx = document.getElementById("genderChart").getContext("2d");
+  if (genderChartInst) genderChartInst.destroy();
+
+  genderChartInst = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: ["Мужчины", "Женщины"],
+      datasets: [{
+        data: [male, female],
+        backgroundColor: ["#4ca6ff", "#ff6eb4"],
+        borderWidth: 0,
+        hoverOffset: 4,
+      }]
+    },
+    options: {
+      cutout: "70%",
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+    }
+  });
+}
+
+function buildPlatformList(platforms) {
+  const container = document.getElementById("platformList");
+  container.innerHTML = "";
+
+  platforms.forEach(p => {
+    const meta = PLATFORM_META[p.platform] ?? { icon: "🌐", name: p.platform, cls: "" };
+    const row = document.createElement("div");
+    row.className = "platform-row";
+    row.innerHTML = `
+      <div class="platform-header">
+        <div class="platform-icon ${meta.cls}">${meta.icon}</div>
+        <span class="platform-name">${meta.name}</span>
+        <span class="platform-followers">${fmt(p.followers)} подп.</span>
+      </div>
+      <div class="platform-stats-grid">
+        <div class="mini-stat">
+          <div class="mv">${fmt(p.total_posts)}</div>
+          <div class="ml">Публикации</div>
+        </div>
+        <div class="mini-stat">
+          <div class="mv">${fmt(p.total_views)}</div>
+          <div class="ml">Просмотры</div>
+        </div>
+        <div class="mini-stat">
+          <div class="mv">${fmt(p.total_likes)}</div>
+          <div class="ml">Лайки</div>
+        </div>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+// ── Render data ──────────────────────────────────────────────────────────────
+function render(data, user) {
+  // Header
+  const name = user.full_name || user.username || "Пользователь";
+  document.getElementById("userName").textContent = name;
+  document.getElementById("userHandle").textContent = user.username ? `@${user.username}` : `ID: ${user.telegram_id}`;
+  document.getElementById("avatarLetter").textContent = name[0].toUpperCase();
+  const planNames = { none: "Без тарифа", standard: "Стандарт", max: "MAX" };
+  document.getElementById("planBadge").textContent = planNames[user.plan] ?? user.plan;
+
+  // Cards
+  document.getElementById("totalPosts").textContent = fmt(data.total_posts);
+  document.getElementById("totalViews").textContent  = fmt(data.total_views);
+  document.getElementById("totalLikes").textContent  = fmt(data.total_likes);
+
+  // Charts
+  buildReachChart(data.reach_chart);
+  buildGenderChart(data.avg_male_pct, data.avg_female_pct);
+
+  // Gender text
+  document.getElementById("malePct").textContent   = data.avg_male_pct + "%";
+  document.getElementById("femalePct").textContent = data.avg_female_pct + "%";
+
+  // Platform list
+  buildPlatformList(data.platforms);
+}
+
+// ── Fetch data ───────────────────────────────────────────────────────────────
+async function loadStats(days = 30) {
+  if (!userId) {
+    showError("Не удалось определить пользователя Telegram.<br>Откройте приложение через бот.");
+    return;
+  }
+
+  try {
+    const res  = await fetch(`${API_BASE}/api/stats/${userId}?days=${days}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (!json.ok) throw new Error("API error");
+
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("app").style.display = "block";
+
+    render(json.stats, json.user);
+  } catch (e) {
+    showError("Ошибка загрузки данных:<br>" + e.message);
+  }
+}
+
+function showError(msg) {
+  document.getElementById("loading").style.display  = "none";
+  document.getElementById("app").style.display      = "none";
+  document.getElementById("errorBox").style.display = "block";
+  document.getElementById("errorMsg").innerHTML = msg;
+}
+
+// ── Period buttons ───────────────────────────────────────────────────────────
+document.querySelectorAll(".period-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    document.getElementById("app").style.display     = "none";
+    document.getElementById("loading").style.display = "flex";
+
+    loadStats(parseInt(btn.dataset.days));
+  });
+});
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+loadStats(30);
+</script>
+</body>
+</html>
