@@ -33,7 +33,12 @@ async def stats(telegram_id: int, days: int = Query(default=30, ge=7, le=90)):
     """
     user = await db.get_user(telegram_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        # Auto-create user if not exists (first open via mini app)
+        user = await db.get_or_create_user(
+            telegram_id=telegram_id,
+            username="",
+            full_name="Пользователь",
+        )
 
     data = await get_aggregated_stats(telegram_id, days=days)
     return {"ok": True, "user": user, "stats": data}
