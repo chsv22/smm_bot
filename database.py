@@ -1,57 +1,65 @@
-import aiosqlite
+import asyncpg
 from datetime import datetime
-from config import config, Plan
+from os import getenv
+from config import Plan
 
-DB = config.database_path
+_pool: asyncpg.Pool | None = None
+
+
+async def get_pool() -> asyncpg.Pool:
+    global _pool
+    if _pool is None:
+        _pool = await asyncpg.create_pool(getenv("DATABASE_URL"), min_size=1, max_size=5)
+    return _pool
 
 
 async def init_db():
-    async with aiosqlite.connect(DB) as db:
-        await db.execute("""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                telegram_id   INTEGER UNIQUE NOT NULL,
-                username      TEXT,
-                full_name     TEXT,
+                id            SERIAL PRIMARY KEY,
+                telegram_id   BIGINT UNIQUE NOT NULL,
+                username      TEXT DEFAULT '',
+                full_name     TEXT DEFAULT '',
                 plan          TEXT DEFAULT 'none',
                 registered_at TEXT NOT NULL
             )
         """)
-        await db.execute("""
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS social_accounts (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                id          SERIAL PRIMARY KEY,
                 user_id     INTEGER NOT NULL,
                 platform    TEXT NOT NULL,
-                handle      TEXT NOT NULL,
+                handle      TEXT NOT NULL DEFAULT '',
                 updated_at  TEXT NOT NULL,
                 UNIQUE(user_id, platform),
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
         """)
-        await db.commit()
 
 
 # ─── Users ────────────────────────────────────────────────────────────────────
 
 async def get_user(telegram_id: int) -> dict | None:
-    async with aiosqlite.connect(DB) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM users WHERE telegram_id = ?", (telegram_id,)
-        ) as cur:
-            row = await cur.fetchone()
-            return dict(row) if row else None
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT * FROM users WHERE telegram_id = $1", telegram_id
+        )
+        return dict(row) if row else None
 
 
 async def create_user(telegram_id: int, username: str, full_name: str) -> dict:
     now = datetime.utcnow().isoformat()
-    async with aiosqlite.connect(DB) as db:
-        await db.execute(
-            "INSERT OR IGNORE INTO users (telegram_id, username, full_name, plan, registered_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (telegram_id, username, full_name, Plan.NONE, now),
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """INSERT INTO users (telegram_id, username, full_name, plan, registered_at)
+               VALUES ($1, $2, $3, $4, $5)
+               ON CONFLICT (telegram_id) DO NOTHING""",
+            telegram_id, username, full_name, Plan.NONE, now,
         )
-        await db.commit()
     return await get_user(telegram_id)
 
 
@@ -63,59 +71,50 @@ async def get_or_create_user(telegram_id: int, username: str, full_name: str) ->
 
 
 async def set_plan(telegram_id: int, plan: str) -> None:
-    async with aiosqlite.connect(DB) as db:
-        await db.execute(
-            "UPDATE users SET plan = ? WHERE telegram_id = ?", (plan, telegram_id)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET plan = $1 WHERE telegram_id = $2", plan, telegram_id
         )
-        await db.commit()
 
 
 # ─── Social accounts ──────────────────────────────────────────────────────────
 
 async def save_social_account(user_id: int, platform: str, handle: str) -> None:
     now = datetime.utcnow().isoformat()
-    async with aiosqlite.connect(DB) as db:
-        await db.execute(
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
             """INSERT INTO social_accounts (user_id, platform, handle, updated_at)
-               VALUES (?, ?, ?, ?)
-               ON CONFLICT(user_id, platform) DO UPDATE SET handle=excluded.handle, updated_at=excluded.updated_at""",
-            (user_id, platform, handle, now),
+               VALUES ($1, $2, $3, $4)
+               ON CONFLICT (user_id, platform)
+               DO UPDATE SET handle = EXCLUDED.handle, updated_at = EXCLUDED.updated_at""",
+            user_id, platform, handle, now,
         )
-        await db.commit()
 
 
 async def get_social_accounts(user_id: int) -> dict:
-    async with aiosqlite.connect(DB) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT platform, handle FROM social_accounts WHERE user_id = ?", (user_id,)
-        ) as cur:
-            rows = await cur.fetchall()
-            return {r["platform"]: r["handle"] for r in rows if r["handle"]}
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT platform, handle FROM social_accounts WHERE user_id = $1", user_id
+        )
+        return {r["platform"]: r["handle"] for r in rows if r["handle"]}
 
 
 # ─── Admin helpers ────────────────────────────────────────────────────────────
 
 async def get_all_users() -> list[dict]:
-    async with aiosqlite.connect(DB) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM users ORDER BY registered_at DESC"
-        ) as cur:
-            rows = await cur.fetchall()
-            return [dict(r) for r in rows]
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch("SELECT * FROM users ORDER BY registered_at DESC")
+        return [dict(r) for r in rows]
 
 
 async def get_stats() -> dict:
-    async with aiosqlite.connect(DB) as db:
-        async with db.execute("SELECT COUNT(*) FROM users") as cur:
-            total = (await cur.fetchone())[0]
-        async with db.execute(
-            "SELECT COUNT(*) FROM users WHERE plan = ?", (Plan.STANDARD,)
-        ) as cur:
-            standard = (await cur.fetchone())[0]
-        async with db.execute(
-            "SELECT COUNT(*) FROM users WHERE plan = ?", (Plan.MAX,)
-        ) as cur:
-            max_plan = (await cur.fetchone())[0]
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        total    = await conn.fetchval("SELECT COUNT(*) FROM users")
+        standard = await conn.fetchval("SELECT COUNT(*) FROM users WHERE plan = $1", Plan.STANDARD)
+        max_plan = await conn.fetchval("SELECT COUNT(*) FROM users WHERE plan = $1", Plan.MAX)
     return {"total": total, "standard": standard, "max": max_plan}

@@ -75,6 +75,35 @@ async def cmd_users(message: Message):
 
 # ─── Рассылка ─────────────────────────────────────────────────────────────────
 
+@router.message(Command("demo"))
+async def cmd_demo(message: Message):
+    """Activate MAX plan demo for yourself — admin only."""
+    if not is_admin(message.from_user.id):
+        return
+    await db.get_or_create_user(
+        telegram_id=message.from_user.id,
+        username=message.from_user.username or "",
+        full_name=message.from_user.full_name,
+    )
+    await db.set_plan(message.from_user.id, "max")
+    await message.answer(
+        "✅ Демо-режим активирован!\n\n"
+        "Тариф <b>MAX</b> установлен на ваш аккаунт.\n\n"
+        "Теперь нажмите <b>💎 Тарифы</b> в главном меню — "
+        "увидите интерфейс оплаченного тарифа с кнопкой подключения соцсетей.\n\n"
+        "Чтобы сбросить: /resetdemo"
+    )
+
+
+@router.message(Command("resetdemo"))
+async def cmd_resetdemo(message: Message):
+    """Reset plan back to none — admin only."""
+    if not is_admin(message.from_user.id):
+        return
+    await db.set_plan(message.from_user.id, "none")
+    await message.answer("✅ Тариф сброшен. Теперь вы снова «новый пользователь».")
+
+
 @router.message(Command("broadcast"))
 async def cmd_broadcast(message: Message, bot: Bot):
     """Usage: /broadcast <текст сообщения>"""
